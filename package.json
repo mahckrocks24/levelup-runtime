@@ -4,10 +4,10 @@
   "description": "LevelUp Growth — Node.js Agent Runtime. Sprint A: Tool Registry, BullMQ workers, Governance Gate, Memory writer.",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "worker": "node src/worker.js",
-    "dev": "nodemon src/index.js"
-  },
+  "start": "node index.js",
+  "worker": "node worker.js",
+  "dev": "nodemon index.js"
+}
   "engines": {
     "node": ">=18.0.0"
   },
