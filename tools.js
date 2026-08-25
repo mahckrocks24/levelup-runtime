@@ -1,19 +1,20 @@
 'use strict';
 
 /**
- * Tool exports — all tools registered in the runtime.
- *
- * Sprint A: one hardcoded test tool.
- * Sprint B+: SEO audit, keyword analysis, CRM contact creation.
- * Each sprint adds more tools here without changing any agent code.
+ * Tool Registry — all registered tools.
+ * Sprint A: run_test_audit (validation only)
+ * Sprint B: seo_audit, keyword_research, content_brief
  */
 
-const testAudit = require('./tools/test-audit');
+const testAudit        = require('./test-audit');
+const seoAudit         = require('./tool-seo-audit');
+const keywordResearch  = require('./tool-keyword-research');
+const contentBrief     = require('./tool-content-brief');
 
 module.exports = [
     testAudit,
-    // Sprint B tools will be added here:
-    // require('./tools/seo-audit'),
-    // require('./tools/keyword-analysis'),
-    // require('./tools/crm-contact-create'),
+    seoAudit,
+    keywordResearch,
+    contentBrief,
+    // Sprint C+ tools added here
 ];

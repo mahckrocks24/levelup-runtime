@@ -1,11 +1,10 @@
 {
   "name": "levelup-runtime",
-  "version": "0.1.0",
-  "description": "LevelUp Growth – Node.js Agent Runtime",
+  "version": "2.37.9",
+  "description": "LevelUp Growth \u2014 Node.js Agent Runtime (launch-scope runtime sanitation: removed agents/tools withheld in-runtime)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "worker": "node worker.js",
     "dev": "nodemon index.js"
   },
   "engines": {
@@ -17,7 +16,8 @@
     "ioredis": "^5.3.2",
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "cheerio": "^1.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

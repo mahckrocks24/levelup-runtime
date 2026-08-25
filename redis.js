@@ -14,12 +14,17 @@ function createRedisConnection() {
     const url = process.env.REDIS_URL || 'redis://localhost:6379';
 
     const client = new Redis(url, {
-        maxRetriesPerRequest: null, // Required by BullMQ
+        maxRetriesPerRequest: null,   // BullMQ requires null — do NOT change
         enableReadyCheck:     false,
+        connectTimeout:       5000,   // Fail fast if Redis unreachable at connect time
+        commandTimeout:       5000,   // Individual command timeout — prevents indefinite hangs
         retryStrategy(times) {
-            // Retry up to 10 times with exponential backoff
-            if (times > 10) return null;
-            return Math.min(times * 500, 5000);
+            if (times > 5) return null;   // Stop after 5 retries (was 10)
+            return Math.min(times * 300, 2000);
+        },
+        reconnectOnError(err) {
+            // Reconnect on connection-level errors only
+            return err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT');
         },
     });
 
@@ -46,4 +51,24 @@ function createRedisPubSubConnection() {
     return createRedisConnection();
 }
 
-module.exports = { createRedisConnection, createRedisPubSubConnection };
+/**
+ * Creates a Redis connection for assistant/memory use.
+ * Stricter timeout: 3s command timeout so assistant route never hangs on Redis.
+ */
+function createAssistantRedisConnection() {
+    const url = process.env.REDIS_URL || 'redis://localhost:6379';
+    const client = new Redis(url, {
+        maxRetriesPerRequest: 1,      // Give up after 1 retry for user-facing calls
+        enableReadyCheck:     false,
+        connectTimeout:       3000,
+        commandTimeout:       3000,
+        retryStrategy(times) {
+            if (times > 2) return null;
+            return 500;
+        },
+    });
+    client.on('error', err => console.warn('[REDIS:assistant] Error:', err.message));
+    return client;
+}
+
+module.exports = { createRedisConnection, createRedisPubSubConnection, createAssistantRedisConnection };

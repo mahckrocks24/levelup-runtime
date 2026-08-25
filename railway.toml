@@ -1,0 +1,41 @@
+# LevelUp Runtime — Railway Deployment Config (v2.25.0)
+# PATCH 2: Horizontal scaling model for 50k users
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "node index.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 10
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+# ── Scaling configuration ──────────────────────────────────────────────
+# Min 2 replicas at all times (HA — one fails, other serves).
+# Max 10 replicas (enough for 50k concurrent users at ~5k/replica).
+# Scale up when CPU > 65% sustained for 90s.
+# Scale down when CPU < 20% sustained for 300s.
+[deploy.scaling]
+minInstances = 2
+maxInstances = 10
+
+# ── Environment variable templates ────────────────────────────────────
+# Set these in Railway dashboard — NOT hardcoded here.
+# REDIS_URL              — Railway Redis plugin injects automatically
+# WP_SECRET              — rotated quarterly
+# LU_SECRET              — rotated quarterly
+# DEEPSEEK_API_KEY       — from DeepSeek dashboard
+# WP_URL                 — WordPress site URL (staging or production)
+# WP_CALLBACK_URL        — lu/v1/agent/result webhook URL
+# SYNTHESIS_ENDPOINT     — internal synthesis service URL
+# LOG_LEVEL              — info | debug | warn
+#
+# Worker concurrency (tune per environment):
+# AGENT_CONCURRENCY=3
+# WRITE_CONCURRENCY=5
+# CREATIVE_CONCURRENCY=2
+# SCANNER_CONCURRENCY=10
+# SOCIAL_CONCURRENCY=5
+# MARKETING_CONCURRENCY=3
+# ENABLED_WORKERS=all    (or comma list for dedicated worker replicas)

@@ -1,130 +1,90 @@
 'use strict';
 
 /**
- * LevelUp Tool Registry — Sprint A
+ * LevelUp Unified Tool Registry Bridge
  *
- * The registry is loaded into memory when the Node runtime boots.
- * In Sprint B+ it will also load tool metadata from WordPress via
- * an internal API call on startup.
+ * Previously: Sprint A-B legacy 4-tool registry (seoAudit, keywordResearch, contentBrief, testAudit)
+ * Now: Delegates to the canonical 47-tool tool-registry.js used by all AI agents.
  *
- * Every tool must conform to the ToolDefinition interface:
- * {
- *   name:                 string,
- *   description:          string,
- *   execution_type:       'worker_job' | 'wordpress_api' | 'external_api' | 'sync_function',
- *   governance_tier:      0 | 1 | 2 | 3 | 4,
- *   required_permissions: string[],
- *   timeout_ms:           number,
- *   handler:              async function(payload, context) => ToolResult,
- * }
- *
- * ToolResult shape:
- * {
- *   success:      boolean,
- *   data:         any,
- *   error?:       string,
- *   execution_ms: number,
- *   memory_hint?: string,   // what the agent should remember from this result
- * }
+ * This ensures the /internal/chat path and all AI subsystems share one tool source.
  */
 
-const tools = require('./tools');
+const path       = require('path');
+const canonical  = require('./tool-registry');   // 47-tool registry
+const { getTool, listAll, getToolsForAgent } = canonical;
 
-class ToolRegistry {
+// Build a ToolRegistry-compatible wrapper so existing index.js callers
+// (registry.list(), registry.get(), registry.execute()) keep working.
+
+class UnifiedRegistry {
     constructor() {
-        this._registry = new Map();
-        this._loadBuiltInTools();
-        console.log(`[REGISTRY] Loaded ${this._registry.size} tool(s): ${[...this._registry.keys()].join(', ')}`);
+        const all = listAll();
+        console.log(`[REGISTRY] Unified: ${all.length} tools from canonical registry`);
     }
 
-    _loadBuiltInTools() {
-        for (const tool of tools) {
-            this._registry.set(tool.name, tool);
-        }
-    }
+    has(toolName) { return !!getTool(toolName); }
 
-    /**
-     * Check if a tool exists and is active.
-     */
-    has(toolName) {
-        return this._registry.has(toolName);
-    }
-
-    /**
-     * Get tool definition.
-     */
     get(toolName) {
-        return this._registry.get(toolName) || null;
+        const t = getTool(toolName);
+        if (!t) return null;
+        return {
+            name:        t.id,
+            description: t.description,
+            parameters:  this._toOpenAI(t),
+        };
     }
 
-    /**
-     * Execute a tool by name.
-     *
-     * @param {string} toolName
-     * @param {object} payload    — inputs for the tool
-     * @param {object} context    — { task_id, agent_id, workspace_id }
-     * @returns {Promise<object>} — ToolResult
-     */
+    // Execute via WP proxy — identical path used by agent task worker
     async execute(toolName, payload, context = {}) {
+        const WP_BASE   = process.env.WP_BASE || process.env.WP_URL || '';
+        const WP_SECRET = process.env.WP_SECRET || '';
+        if (!WP_BASE) return { success: false, data: null, error: 'WP_BASE not configured' };
+
         const start = Date.now();
-
-        const tool = this._registry.get(toolName);
-        if (!tool) {
-            return {
-                success:      false,
-                data:         null,
-                error:        `Tool '${toolName}' is not registered.`,
-                execution_ms: Date.now() - start,
-            };
-        }
-
-        console.log(`[REGISTRY] Executing tool: ${toolName} | task=${context.task_id}`);
-
+        const url   = `${process.env.LARAVEL_BASE_URL || process.env.LARAVEL_URL || WP_BASE}/api/internal/tools/execute`;
         try {
-            // Execute with timeout
-            const result = await Promise.race([
-                tool.handler(payload, context),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error(`Tool '${toolName}' timed out after ${tool.timeout_ms}ms`)),
-                    tool.timeout_ms)
-                ),
-            ]);
-
-            const execution_ms = Date.now() - start;
-            console.log(`[REGISTRY] Tool ${toolName} completed in ${execution_ms}ms`);
-
-            return {
-                success:      true,
-                data:         result,
-                execution_ms,
-                memory_hint:  tool.memory_hint ? tool.memory_hint(result) : null,
-            };
-
-        } catch (err) {
-            const execution_ms = Date.now() - start;
-            console.error(`[REGISTRY] Tool ${toolName} failed: ${err.message}`);
-            return {
-                success:      false,
-                data:         null,
-                error:        err.message,
-                execution_ms,
-            };
+            const ctrl  = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 25000);
+            const res   = await fetch(url, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-LU-Secret': WP_SECRET },
+                body:    JSON.stringify({ tool_id: toolName, agent_id: context.agent_id || 'system', params: payload }),
+                signal:  ctrl.signal,
+            });
+            clearTimeout(timer);
+            if (!res.ok) {
+                const err = await res.text().catch(() => '');
+                return { success: false, data: null, error: `HTTP ${res.status}: ${err.slice(0, 200)}` };
+            }
+            const json = await res.json();
+            return { success: true, data: json.data ?? json, execution_ms: Date.now() - start };
+        } catch (e) {
+            return { success: false, data: null, error: e.message, execution_ms: Date.now() - start };
         }
     }
 
-    /**
-     * List all registered tools (for debugging / admin).
-     */
-    list() {
-        return [...this._registry.values()].map(t => ({
-            name:           t.name,
+    // Returns tools in the shape needed by runAgentLoop / getToolDefinitionsForLLM
+    list(agentId) {
+        const tools = agentId ? getToolsForAgent(agentId) : listAll();
+        return tools.map(t => ({
+            name:           t.id,
             description:    t.description,
-            execution_type: t.execution_type,
-            governance_tier: t.governance_tier,
+            execution_type: 'remote',
+            governance_tier: t.requires_approval ? 'approval' : 'auto',
+            parameters:     this._toOpenAI(t),
         }));
+    }
+
+    // Convert tool-registry.js param schema → OpenAI function-calling format
+    _toOpenAI(tool) {
+        const props = {};
+        const required = [];
+        for (const [k, v] of Object.entries(tool.params || {})) {
+            props[k] = { type: v.type || 'string', description: v.description || k };
+            if (v.required) required.push(k);
+        }
+        return { type: 'object', properties: props, required };
     }
 }
 
-// Singleton — one registry per runtime instance
-const registry = new ToolRegistry();
-module.exports = registry;
+module.exports = new UnifiedRegistry();
