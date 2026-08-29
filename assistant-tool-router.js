@@ -67,10 +67,13 @@ const INTENT_TYPE = {
 // genuinely retained alternative to offer, instead of being handed tools that
 // the Laravel kernel would refuse a moment later.
 const OUT_OF_SCOPE_PATTERNS = [
+  // v2.37.10 (DEC-0028): the social-media entry and the Marcus entry are REMOVED — social posting,
+  // scheduling, publishing and hashtags are in the product. Social listening / comment replies /
+  // engagement analytics stay out. Email marketing stays out.
   {
-    patterns: [/social.*(?:post|media|campaign|calendar|content|strategy)|post.*(?:on|to).*(?:linkedin|instagram|facebook|tiktok|twitter|x\b)|(?:linkedin|instagram|facebook|tiktok).*post|schedule.*post|publish.*post|hashtag|caption.*for|cross.?post|repurpose.*for.*(?:linkedin|insta|tiktok)|reply.*to.*comment|respond.*to.*comment|engagement.*rate|follower/i],
-    reason: 'Social-media management (posting, scheduling, engagement, hashtags, social analytics) is not part of this product.',
-    alternative: 'Offer instead: write a blog article, share an already-published article, or generate a Studio image or video the owner can post themselves.',
+    patterns: [/reply.*to.*comment|respond.*to.*comment|engagement.*rate|social.*listening|social.*monitoring|competitor.*(?:social|monitoring)/i],
+    reason: 'Social listening, comment replies and engagement analytics are not part of this product.',
+    alternative: 'Offer instead: draft, schedule or publish a social post (Marcus), or write a blog article.',
   },
   {
     patterns: [/email.*(?:campaign|blast|marketing|newsletter|sequence|drip|automation|template|subject.*line)|newsletter|send.*email|blast.*email|drip.*campaign|nurture.*sequence|enroll.*sequence|subject.*line|spam.*(?:check|score)|open.*rate|click.*rate/i],
@@ -78,9 +81,9 @@ const OUT_OF_SCOPE_PATTERNS = [
     alternative: 'Offer instead: a CRM follow-up task for the owner to action, or a blog article covering the same message.',
   },
   {
-    patterns: [/\b(marcus|zara|tyler|zoe|jordan|maya|vera|kai|chris|leo)\b/i],
+    patterns: [/\b(zara|tyler|zoe|jordan|maya|vera|kai|chris|leo)\b/i],
     reason: 'That specialist is not part of the LevelUp Growth team.',
-    alternative: 'Redirect to the agents who are: Sarah (orchestration), James (SEO), Alex (technical SEO), Priya (content), Elena (CRM).',
+    alternative: 'Redirect to the agents who are: Sarah (orchestration), James (SEO), Alex (technical SEO), Priya (content), Marcus (social), Elena (CRM).',
   },
 ];
 
@@ -197,6 +200,14 @@ const INTENT_PATTERNS = [
     reasoning: 'User wants to see available templates — list_design_templates returns the full catalog with industry/format tags.',
   },
 
+  // ── Social (v2.37.10, DEC-0028) — execution is Laravel-native (Sarah → create_tasks →
+  //    social engine); the router only classifies the intent so the assistant answers truthfully.
+  {
+    patterns: [/social.*(?:post|media|campaign|calendar|content|strategy)|post.*(?:on|to).*(?:linkedin|instagram|facebook|tiktok|twitter|x\b)|(?:linkedin|instagram|facebook|tiktok).*post|hashtag|caption.*for|cross.?post|repurpose.*for.*(?:linkedin|insta|tiktok)/i],
+    intent:   'social_content',
+    tools:    [],
+    reasoning: 'User wants a social post drafted, scheduled or published — Marcus (social) handles it through the platform\'s social engine; publishing needs a connected account and the owner\'s approval.',
+  },
   // ── OUT OF LAUNCH SCOPE (v2.37.3) ────────────────────────────────────────
   // The social-composing, social-analytics, email-marketing and sequence
   // intents that used to live here have been REMOVED. Their trigger patterns

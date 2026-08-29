@@ -32,6 +32,17 @@ const launchScope = require('./launch-scope');
 
 const CAPABILITY_MAP = {
 
+    // Marcus — Social Media Manager (restored v2.37.10, DEC-0028). Execution is Laravel-native;
+    // these grants let the planner/roster route social work to him.
+    marcus: [
+        'ai_status', 'list_goals', 'agent_status',
+        'create_post', 'schedule_post', 'publish_post', 'list_posts', 'update_post', 'get_queue',
+        'ai_generate_social_post', 'generate_hashtags', 'social_platform_adapt',
+        'list_events', 'check_availability',
+        'generate_design', 'pick_design_template', 'list_design_templates',
+        'system_health_check', 'memory_context',
+    ],
+
     // Sarah — DMM Director (orchestration, growth management, coordination)
     dmm: [
         // Goals / orchestration

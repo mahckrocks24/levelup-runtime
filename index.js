@@ -526,7 +526,7 @@ const RUNTIME_BUILD = {
     // build_id is the Railway git SHA, so it cannot answer "which release is
     // live?". Verifying the v2.37.6 deploy required inferring that from
     // behaviour; this makes it directly checkable.
-    release:          'v2.37.9-provider-transport',
+    release:          'v2.37.10-social-dec0028',
     abort_provenance: true,
 };
 
@@ -570,6 +570,8 @@ app.get('/health', (req, res) => res.json({
         'competitor_analysis',
         'write_article','improve_draft','serp_analysis','competitor_keywords',
         'chat_json',
+        // v2.37.10 (DEC-0028): social copy generation is back in scope.
+        'social_post','social_hashtag_pack',
         // Sarah × Studio Phase 1
         'studio_design','studio_template_pick','studio_copy_variants',
     ],
@@ -627,21 +629,18 @@ app.post('/ai/run', requireSecret, async (req, res) => {
         'email_subject', 'email_subject_suggest', 'email_block_rewrite',
         'email_spam_check', 'email_spam_critique', 'email_ai_generate',
         'newsletter', 'newsletter_generation', 'campaign_copy', 'ai_campaign_copy',
-        // social
-        'social_post', 'social_post_v2', 'social_hashtag_pack', 'social_platform_adapt',
-        'social_caption', 'social_ai_post', 'hashtag_pack', 'hashtag_suggestions',
-        'social_image', 'social_image_gen',
+        // social: RE-INCLUDED per DEC-0028 (2026-08-25) — social automation is in launch (v2.37.10).
     ]);
     // Belt-and-braces: catch future/renamed modes by shape as well as by name,
     // so adding a new `email_*` or `social_*` generation task cannot silently
     // reopen the surface. `chat_json` and studio tasks are unaffected.
     const taskName = String(task);
-    const shapeMatch = /^(email|social|newsletter|campaign)[_-]/i.test(taskName);
+    const shapeMatch = /^(email|newsletter|campaign)[_-]/i.test(taskName); // v2.37.10: social un-gated (DEC-0028)
     if (OUT_OF_SCOPE_TASKS.has(taskName) || shapeMatch) {
         return res.status(400).json({
             success: false,
             error: 'out_of_launch_scope',
-            message: `Task '${task}' is not available: social-media management and email marketing are not part of this product.`,
+            message: `Task '${task}' is not available: email marketing is not part of this product.`,
         });
     }
 
@@ -699,6 +698,9 @@ app.post('/ai/run', requireSecret, async (req, res) => {
         image_generation:       'You are a creative director. Convert the user brief into a detailed image generation prompt. Return only the prompt string.',
         builder_generate:       'You are the LevelUp Builder AI. Generate a structured page section as JSON with type, content (object), styles (object), and tokens (object). No raw HTML.',
         competitor_analysis:    'You are a marketing strategist. Analyse the competitor and return structured insights: strengths, weaknesses, opportunities, and counter-strategies.',
+        // v2.37.10 (DEC-0028): social copy generation restored. Mirrors Laravel SocialService::SOCIAL_SYSTEM_PROMPT.
+        social_post:            'You are a senior social media copywriter. Write ONE on-brand post for the given platform. Ground every choice in the supplied brand context (brand_name, brand_voice, colours, industry, audience) and any learned_patterns. Honour platform norms: instagram 138-150 characters sweet spot, facebook 40-80 characters organic, linkedin 1300-3000 characters professional, twitter/x 280 characters hard limit, tiktok 100-300 characters. Never mention LevelUp, AI, or that this was generated. Return ONLY JSON: {"content": "...", "hashtags": ["#tag", ...], "best_time": "e.g. Tue 6pm"}.',
+        social_hashtag_pack:    'You are a social media strategist. Return ONLY a JSON object {"hashtags": ["#tag", ...]} — a mix of popular, medium and niche tags relevant to the brief. No prose.',
         // LAUNCH SCOPE (v2.37.3): email_generation, social_post, social_post_v2,
         // social_hashtag_pack, social_platform_adapt and email_template_generate_v2
         // were REMOVED. They are LLM generation modes for email-marketing copy and
@@ -1531,6 +1533,7 @@ app.post('/internal/assistant', requireSecret, async (req, res) => {
                 const domainAgents = {
                     serp_analysis: 'james', deep_audit: 'james', write_article: 'priya',
                     improve_draft: 'priya', create_lead: 'elena',
+                    create_post: 'marcus', schedule_post: 'marcus', // v2.37.10 (DEC-0028)
                     get_site_pages: 'alex', scan_site_url: 'alex', insert_link: 'alex',
                     generate_page_layout: 'dmm',
                 };

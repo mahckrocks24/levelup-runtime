@@ -11,16 +11,18 @@
  * Exit: 0 = all pass, 1 = any failure
  */
 
-const REMOVED_AGENTS = ['marcus', 'jordan', 'tyler', 'zara', 'zoe', 'maya', 'vera', 'kai', 'chris', 'leo'];
+// v2.37.10 (DEC-0028): social is IN — marcus and the social composing/AI tools are RETAINED.
+const REMOVED_AGENTS = ['jordan', 'tyler', 'zara', 'zoe', 'maya', 'vera', 'kai', 'chris', 'leo'];
+const RESTORED_AGENTS = ['marcus'];
+const RESTORED_TOOLS = ['create_post', 'schedule_post', 'publish_post', 'list_posts', 'update_post', 'get_queue',
+    'ai_generate_social_post', 'generate_hashtags', 'social_platform_adapt'];
 const REMOVED_TOOLS = [
-    'create_post', 'schedule_post', 'publish_post', 'list_posts', 'update_post', 'get_queue',
-    'record_social_analytics', 'ai_generate_social_post', 'generate_hashtags', 'social_image_gen',
-    'social_platform_adapt', 'create_campaign', 'update_campaign', 'list_campaigns',
+    'record_social_analytics', 'create_campaign', 'update_campaign', 'list_campaigns',
     'schedule_campaign', 'send_campaign', 'create_automation', 'create_template', 'list_templates',
     'record_metric', 'test_send_email', 'send_email', 'ai_generate_email', 'ai_rewrite_block',
     'ai_suggest_subjects', 'ai_spam_check', 'enroll_sequence', 'list_sequences',
 ];
-const RETAINED_AGENTS = ['dmm', 'james', 'alex', 'diana', 'ryan', 'sofia', 'priya', 'nora', 'elena', 'max'];
+const RETAINED_AGENTS = ['dmm', 'james', 'alex', 'diana', 'ryan', 'sofia', 'priya', 'nora', 'elena', 'max', 'marcus'];
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -114,12 +116,20 @@ check('ROSTER', 'AGENTS proxy hides removed agents', () => {
 });
 check('ROSTER', 'team roster prompt names no removed agent', () => {
     const text = agents.getTeamRoster().toLowerCase();
-    const found = ['marcus', 'zara', 'tyler', 'jordan', 'vera', 'kai'].filter(n => text.includes(n));
+    const found = ['zara', 'tyler', 'jordan', 'vera', 'kai'].filter(n => text.includes(n));
     return found.length ? `named: ${found.join(', ')}` : true;
 });
+check('ROSTER', 'team roster names the restored social agent (DEC-0028)', () => {
+    const text = agents.getTeamRoster().toLowerCase();
+    return text.includes('marcus') ? true : 'marcus missing from roster';
+});
 check('ROSTER', 'removed agent gets no persona to speak as', () => {
-    const p = agents.buildAgentConsultPrompt('marcus', 'post this', {});
+    const p = agents.buildAgentConsultPrompt('jordan', 'post this', {});
     return /not part of the LevelUp Growth team|not available/i.test(p) ? true : `got: ${p.slice(0, 80)}`;
+});
+check('ROSTER', 'restored agent gets a persona (DEC-0028)', () => {
+    const p = agents.buildAgentConsultPrompt('marcus', 'post this', {});
+    return /You are Marcus/i.test(p) ? true : `got: ${p.slice(0, 80)}`;
 });
 
 // ══ 3. Capability map ════════════════════════════════════════════════════
@@ -153,7 +163,8 @@ check('CAP', 'non-string capability rejected', () => {
 });
 check('CAP', 'unknown capability rejected', () => cap.hasCapability('dmm', 'no_such_tool_xyz') === false);
 check('CAP', 'unknown agent rejected', () => cap.hasCapability('nobody_xyz', 'ai_status') === false);
-check('CAP', 'removed agent rejected', () => cap.hasCapability('marcus', 'ai_status') === false);
+check('CAP', 'removed agent rejected', () => cap.hasCapability('jordan', 'ai_status') === false);
+check('CAP', 'restored social agent holds social grants (DEC-0028)', () => cap.hasCapability('marcus', 'create_post') === true);
 check('CAP', 'malformed agent id rejected', () => {
     for (const v of [undefined, null, '', '  ', 42, {}, []]) {
         if (cap.hasCapability(v, 'ai_status')) return `accepted ${JSON.stringify(v)}`;
@@ -322,15 +333,24 @@ console.log('\n-- 7. assistant intent router --');
 const router = require('./assistant-tool-router');
 
 const OUT_OF_SCOPE_PROMPTS = [
-    'Create a social media campaign.',
     'Send an email campaign.',
     'Build a newsletter sequence.',
-    'Ask Marcus to publish this.',
     'Get Chris to make TikTok videos.',
     'Ask Leo to create ads.',
-    'Post every day on Facebook.',
     'Automatically reply to comments.',
 ];
+// v2.37.10 (DEC-0028): social posting is IN — these must NOT be refused.
+const IN_SCOPE_SOCIAL_PROMPTS = [
+    'Create a social media campaign.',
+    'Ask Marcus to publish this.',
+    'Post every day on Facebook.',
+];
+for (const prompt of IN_SCOPE_SOCIAL_PROMPTS) {
+    check('ROUTER', `does not refuse social: "${prompt}"`, () => {
+        const r = router.routeIntent(prompt, 'dmm');
+        return r.out_of_scope ? `refused: ${r.reason || 'out_of_scope'}` : true;
+    });
+}
 for (const prompt of OUT_OF_SCOPE_PROMPTS) {
     check('ROUTER', `refuses: "${prompt}"`, () => {
         const r = router.routeIntent(prompt, 'dmm');
@@ -370,7 +390,7 @@ check('ROUTER', 'Studio visual request still routes', () => {
 console.log('\n-- 8. memory sanitation --');
 
 check('MEM', 'removed-agent history marked inert, not erased', () => {
-    const rec = { id: 7, title: 'Post to Instagram', assignee: 'marcus', tools: ['create_post'] };
+    const rec = { id: 7, title: 'Send the newsletter', assignee: 'vera', tools: ['send_campaign'] };
     const marked = ls.markHistoricalRecord(rec);
     if (marked.title !== rec.title) return 'history content destroyed';
     if (marked.launch_scope_removed !== true) return 'not flagged';
@@ -391,7 +411,7 @@ check('MEM', 'retained history untouched', () => {
 });
 check('MEM', 'stale memory cannot restore removed routing', () => {
     const stale = [
-        { id: 1, assignee: 'marcus', tools: ['create_post'] },
+        { id: 1, assignee: 'jordan', tools: ['record_social_analytics'] },
         { id: 2, assignee: 'vera', tools: ['send_campaign'] },
         { id: 3, assignee: 'james', tools: ['serp_analysis'] },
     ].map(ls.markHistoricalRecord);
@@ -419,15 +439,15 @@ const mp = require('./meeting-prompts');
 
 check('MEET', '@mention of a removed agent summons nobody', () => {
     if (typeof mp.parseAddressing !== 'function') return true; // not exported in this build
-    const r = mp.parseAddressing('@marcus can you post this');
+    const r = mp.parseAddressing('@jordan can you post this');
     const list = (r && r.agents) || [];
-    return list.includes('marcus') ? 'marcus summoned' : true;
+    return list.includes('jordan') ? 'jordan summoned' : true;
 });
 check('MEET', 'plain-name mention of removed agent summons nobody', () => {
     if (typeof mp.parseAddressing !== 'function') return true;
-    const r = mp.parseAddressing('Marcus, publish this now');
+    const r = mp.parseAddressing('Jordan, publish this now');
     const list = (r && r.agents) || [];
-    return list.includes('marcus') ? 'marcus summoned' : true;
+    return list.includes('jordan') ? 'jordan summoned' : true;
 });
 check('MEET', 'retained @mention still works', () => {
     if (typeof mp.parseAddressing !== 'function') return true;

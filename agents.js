@@ -66,6 +66,7 @@ const AGENTS_STATIC = {
     nora:   { id:'nora',   name:'Nora',   title:'Content Strategy Director',    emoji:'📚',  color:'#7C3AED' },
 
     // ── CRM / lifecycle specialists (2)
+    marcus: { id:'marcus', name:'Marcus', title:'Social Media Manager',         emoji:'📱',  color:'#F59E0B' }, // v2.37.10 (DEC-0028) restored
     elena:  { id:'elena',  name:'Elena',  title:'Lead & CRM Manager',           emoji:'🎯',  color:'#F87171' },
     max:    { id:'max',    name:'Max',    title:'Growth & CRO Director',        emoji:'🚀',  color:'#DC2626' },
 };

@@ -1,6 +1,6 @@
 {
   "name": "levelup-runtime",
-  "version": "2.37.9",
+  "version": "2.37.10",
   "description": "LevelUp Growth \u2014 Node.js Agent Runtime (launch-scope runtime sanitation: removed agents/tools withheld in-runtime)",
   "main": "index.js",
   "scripts": {

@@ -26,10 +26,13 @@
 // ── Agents removed from launch ────────────────────────────────────────────
 // Runtime keys. NOTE: Sarah's runtime key is `dmm`, NOT `sarah` — ~25 call
 // sites depend on `dmm`. She is RETAINED (constrained), never removed.
+// v2.37.10 (DEC-0028, 2026-08-25): Marcus (Social Media Manager) is RESTORED — social automation
+// is in launch. The other social specialists stay removed; email marketing stays HELD.
+// Mirrors Laravel LaunchScopePolicy::REMOVED_AGENTS.
 const REMOVED_AGENTS = Object.freeze([
-    'marcus', 'jordan', 'tyler', 'zara', 'zoe', 'maya', // social
-    'vera', 'kai',                                       // email
-    'chris', 'leo',                                      // video / ad copy
+    'jordan', 'tyler', 'zara', 'zoe', 'maya', // social (marcus restored)
+    'vera', 'kai',                             // email
+    'chris', 'leo',                            // video / ad copy
 ]);
 
 // ── Agents retained at launch (runtime keys) ──────────────────────────────
@@ -38,6 +41,7 @@ const RETAINED_AGENTS = Object.freeze([
     'james', 'alex', 'diana', 'ryan', 'sofia', // SEO
     'priya', 'nora',                          // content
     'elena', 'max',                           // CRM / growth
+    'marcus',                                 // social (DEC-0028, v2.37.10)
 ]);
 
 // ── Agents retained but CONSTRAINED (social/email grants revoked in W3) ────
@@ -46,18 +50,9 @@ const CONSTRAINED_AGENTS = Object.freeze(['dmm', 'priya', 'elena', 'max', 'nora'
 // ── Tools removed from launch ─────────────────────────────────────────────
 // Mirrors Laravel REMOVED_TOOLS + every alias/variant found in the runtime.
 const REMOVED_TOOLS = Object.freeze([
-    // ── social: composing / publishing / scheduling / analytics ──
-    'create_post', 'social_create_post',
-    'update_post', 'list_posts',
-    'schedule_post', 'social_schedule_post', 'social_schedule',
-    'publish_post', 'social_publish_post',
-    'get_queue',
+    // ── social: RESTORED per DEC-0028 (v2.37.10) — composing, scheduling, publishing, AI copy
+    //    and hashtags are in launch. Social LISTENING / analytics stay out.
     'record_social_analytics', 'social_analytics',
-    // ── social: AI generation ──
-    'social_ai_post', 'ai_generate_social_post', 'ai_social_post',
-    'social_image', 'social_image_gen',
-    'hashtag_suggestions', 'generate_hashtags',
-    'social_platform_adapt',
     // ── email marketing: campaigns ──
     'create_campaign', 'update_campaign', 'delete_campaign', 'list_campaigns',
     'schedule_campaign', 'send_campaign', 'send_email_campaign',
