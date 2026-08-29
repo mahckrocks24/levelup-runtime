@@ -519,7 +519,7 @@ function getQueue() {
 // identity is explicit.
 const RUNTIME_BUILD = {
     version:          RUNTIME_BUILD_VERSION,
-    build_id:         process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RUNTIME_BUILD_ID || 'v2.37.9-provider-transport',
+    build_id:         process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RUNTIME_BUILD_ID || 'v2.37.10-social-dec0028',
     built_at:         process.env.RUNTIME_BUILT_AT || '2026-08-08',
     contract_version: runtimeErrors.CONTRACT_VERSION,
     // v2.37.7 — an explicit, non-overridable release tag. In production
